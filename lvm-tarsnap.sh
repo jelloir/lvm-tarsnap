@@ -10,7 +10,7 @@ lvsnap_suffix="-snapshot"
 readonly script_name=$(basename $0)
 
 log()
-# log information
+# log info
 {
     echo "$@"
     logger -p user.notice -t $script_name "$@"
