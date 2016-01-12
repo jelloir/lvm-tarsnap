@@ -12,15 +12,15 @@ readonly script_name=$(basename $0)
 log()
 # log information
 {
-  echo "$@"
-  logger -p user.notice -t $script_name "$@"
+    echo "$@"
+    logger -p user.notice -t $script_name "$@"
 }
 
 err()
 # log errors
 {
-  echo "$@" >&2
-  logger -p user.error -t $script_name "$@"
+    echo "$@" >&2
+    logger -p user.error -t $script_name "$@"
 }
 
 lvsnap_create()
