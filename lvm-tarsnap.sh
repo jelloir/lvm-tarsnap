@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 vgname="$1"; shift
 lvname="$1"; shift
@@ -74,8 +74,8 @@ backup()
 {
     local l=$1; shift # $1 logical volume (l)
     local x=$1; shift # $2 lv snapshot suffix (x)
-    local c="$(IFS=, ; for e in $1 ; do printf "%s" "--exclude=\"$e\" " ; done)"; shift # $3 exclusions
-    eval tarsnap -C /mnt/$l$x -c -f $l-`date +%Y-%m-%d_%H-%M-%S` $c ./ \
+    local c="$(IFS=,; for e in $1; do printf "%s" "--exclude=\"$e\" "; done)"; shift # $3 exclusions
+    eval tarsnap -C /mnt/$l$x -c -f $l-$(date +%Y-%m-%d_%H-%M-%S) $c ./ \
         && { log "${l}${x} backed up"; return 0; } \
         || { err "${l}${x} backup failed"; return 1; }
 }
