@@ -2,7 +2,7 @@
 
 vgname=""
 lvname=""
-lvsize="100%"
+lvsize="100"
 lvexcl=""
 lvsnap_suffix="-snapshot"
 mntopt="ro"
@@ -29,7 +29,7 @@ lvsnap_create()
     local l=$1; shift # $2 logical volume (l)
     local x=$1; shift # $3 lv snapshot suffix (x)
     local z=$1; shift # $4 lv size in % (z)
-    lvcreate -s -l +"$z"FREE -n $l$x $v/$l \
+    lvcreate -s -l +$z%FREE -n $l$x $v/$l \
         && { log "$l$x created ($z)"; return 0; } \
         || { err "$l$x create failed"; return 1; }
 }
@@ -74,7 +74,7 @@ backup()
     local l=$1; shift # $1 logical volume (l)
     local x=$1; shift # $2 lv snapshot suffix (x)
     local c="$(IFS=,; for e in $1; do printf "%s" "--exclude=\"$e\" "; done)"; shift # $3 exclusions
-    local tc="tarsnap -C /mnt/$l$x -c -f $l-$(date +%Y-%m-%d_%H-%M-%S) $c ./"
+    local tc="tarsnap -C /mnt/$l$x --cachedir /var/cache/tarsnap -c -f $l-$(date +%Y-%m-%d_%H-%M-%S) $c ./"
     log "tarsnap command: $tc"
     eval $tc \
         && { log "$l$x backed up"; return 0; } \
@@ -89,7 +89,7 @@ Usage: lvm-tarsnap.sh [OPTION]...
 
     -g  Volume Group name (required)
     -l  Logical Volume name (required)
-    -s  Snapshot size in percent (optional - default 100%) 
+    -s  Snapshot size in percent, exclude % sign (optional - default 100) 
     -e  Comma separated list of exclusions (optional - e.g. "my folder,file")
     -x  Snapshot suffix (optional - default "-snapshot")
     -m  Snapshot mount options (optional - default "ro")
