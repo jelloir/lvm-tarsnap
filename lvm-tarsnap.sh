@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 vgname=""
 lvname=""
@@ -74,9 +74,9 @@ backup()
     local l=$1; shift # $1 logical volume (l)
     local x=$1; shift # $2 lv snapshot suffix (x)
     local c="$(IFS=,; for e in $1; do printf "%s" "--exclude=\"$e\" "; done)"; shift # $3 exclusions
-    echo "running tarsnap with arguments:"
-    echo "tarsnap -C /mnt/$l$x -c -f $l-$(date +%Y-%m-%d_%H-%M-%S) $c ./"
-    eval tarsnap -C /mnt/$l$x -c -f $l-$(date +%Y-%m-%d_%H-%M-%S) $c ./ \
+    local tc="tarsnap -C /mnt/$l$x -c -f $l-$(date +%Y-%m-%d_%H-%M-%S) $c ./"
+    log "tarsnap command: $tc"
+    eval $tc \
         && { log "$l$x backed up"; return 0; } \
         || { err "$l$x backup failed"; return 1; }
 }
@@ -99,6 +99,18 @@ EOT
     exit 1;
 }
 
+lock()
+{
+    local l=$1; shift # $1 logical volume (l)
+    local f=$1; shift # $2 add or remove lock (f)
+    if test $f = add; then
+        touch /run/"$script_name"_$l.lock
+    fi
+    if test $f = rmv; then
+        rm /run/"$script_name"_$l.lock
+    fi
+}
+
 main()
 {
     # command line arguments
@@ -117,23 +129,57 @@ main()
     done
 
     # ensure required arguments
-    test -z "$vgname" && \
-        { echo "Error: you must specify a volume group name using -g" usage; exit 1; }
+    if test -z "$vgname"; then
+        echo "Error: you must specify a volume group name using -g"
+        usage
+        exit 1
+    fi
 
-    test -z "$lvname" && \
-        { echo "Error: you must specify a logical volume name using -l" usage; exit 1; }
+    if test -z "$lvname"; then
+        echo "Error: you must specify a logical volume name using -l"
+        usage
+        exit 1
+    fi
+
+    # check for existing job
+    # integrate this into lock function use case statement
+    # lock $lvname chk
+    if test -e /run/"$script_name"_$lvname.lock; then
+        err "Lock file /run/"$script_name"_$lvname.lock exists"
+        exit 1
+    fi
+
+    # create lock file
+    lock $lvname add
 
     # run backup
-    lvsnap_create ${vgname} ${lvname} ${lvsnap_suffix} ${lvsize} \
-        || exit 1
-    lvsnap_mount ${vgname} ${lvname} ${lvsnap_suffix} ${mntopt} \
-        || { lvsnap_remove ${vgname} ${lvname} ${lvsnap_suffix}; exit 1; }
-    backup ${lvname} ${lvsnap_suffix} ${lvexcl} \
-        || { lvsnap_umount ${lvname} ${lvsnap_suffix}; lvsnap_remove ${vgname} ${lvname} ${lvsnap_suffix}; exit 1; }
-    lvsnap_umount ${lvname} ${lvsnap_suffix} \
-        || { sleep 10; lvsnap_umount ${lvname} ${lvsnap_suffix} || exit 1; }
-    lvsnap_remove ${vgname} ${lvname} ${lvsnap_suffix} \
-        || { sleep 10; lvsnap_remove ${vgname} ${lvname} ${lvsnap_suffix} || exit 1; }
+    if ! lvsnap_create $vgname $lvname $lvsnap_suffix $lvsize; then
+        lock $lvname rmv
+        exit 1
+    fi
+    if ! lvsnap_mount $vgname $lvname $lvsnap_suffix $mntopt; then
+        lvsnap_remove $vgname $lvname $lvsnap_suffix
+        lock $lvname rmv
+        exit 1
+    fi
+    if ! backup $lvname $lvsnap_suffix $lvexcl; then
+        lvsnap_umount $lvname $lvsnap_suffix
+        lvsnap_remove $vgname $lvname $lvsnap_suffix
+        lock $lvname rmv
+        exit 1
+    fi
+    if ! lvsnap_umount $lvname $lvsnap_suffix; then
+        sleep 10
+        lvsnap_umount $lvname $lvsnap_suffix || { lock $lvname rmv; exit 1; }
+    fi
+    if ! lvsnap_remove $vgname $lvname $lvsnap_suffix; then
+        sleep 10
+        lvsnap_remove $vgname $lvname $lvsnap_suffix || { lock $lvname rmv; exit 1; }
+    fi
+
+    # remove lock file
+    lock $lvname rmv
+
     exit 0
 }
 
