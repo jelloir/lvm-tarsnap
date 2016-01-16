@@ -100,15 +100,20 @@ EOT
 }
 
 lock()
+# lock file management
 {
     local l=$1; shift # $1 logical volume (l)
     local f=$1; shift # $2 add or remove lock (f)
-    if test $f = add; then
-        touch /run/"$script_name"_$l.lock
-    fi
-    if test $f = rmv; then
-        rm /run/"$script_name"_$l.lock
-    fi
+    local lk=/run/"$script_name"_$l.lock
+    case $f in
+        add)    touch $lk ;;
+        rmv)    rm $lk ;;
+        chk)    if test -e $lk; then
+                    err "Lock file $lk exists"
+                    return 1
+                fi ;;
+        *)      return 1 ;;              
+    esac 
 }
 
 main()
@@ -141,16 +146,8 @@ main()
         exit 1
     fi
 
-    # check for existing job
-    # integrate this into lock function use case statement
-    # lock $lvname chk
-    if test -e /run/"$script_name"_$lvname.lock; then
-        err "Lock file /run/"$script_name"_$lvname.lock exists"
-        exit 1
-    fi
-
-    # create lock file
-    lock $lvname add
+    # check existing job else create lock file
+    lock $lvname chk && lock $lvname add || exit 1
 
     # run backup
     if ! lvsnap_create $vgname $lvname $lvsnap_suffix $lvsize; then
