@@ -81,6 +81,23 @@ backup()
         || { err "$l$x backup failed"; return 1; }
 }
 
+lock()
+# lock file management
+{
+    local l=$1; shift # $1 logical volume (l)
+    local f=$1; shift # $2 add or remove lock (f)
+    local lk=/run/"$script_name"_$l.lock
+    case $f in
+        add)    touch $lk ;;
+        rmv)    rm $lk ;;
+        chk)    if test -e $lk; then
+                    err "Lock file $lk exists"
+                    return 1
+                fi ;;
+        *)      return 1 ;;              
+    esac 
+}
+
 usage()
 # print usage and exit
 {
@@ -97,23 +114,6 @@ Usage: lvm-tarsnap.sh [OPTION]...
 
 EOT
     exit 1;
-}
-
-lock()
-# lock file management
-{
-    local l=$1; shift # $1 logical volume (l)
-    local f=$1; shift # $2 add or remove lock (f)
-    local lk=/run/"$script_name"_$l.lock
-    case $f in
-        add)    touch $lk ;;
-        rmv)    rm $lk ;;
-        chk)    if test -e $lk; then
-                    err "Lock file $lk exists"
-                    return 1
-                fi ;;
-        *)      return 1 ;;              
-    esac 
 }
 
 main()
