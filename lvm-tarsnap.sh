@@ -74,7 +74,7 @@ backup()
     local l=$1; shift # $1 logical volume (l)
     local x=$1; shift # $2 lv snapshot suffix (x)
     local c="$(IFS=,; for e in $1; do printf "%s" "--exclude=\"$e\" "; done)"; shift # $3 exclusions
-    local tc="tarsnap -C /mnt/$l$x --cachedir /var/cache/tarsnap -c -f $l-$(date +%Y-%m-%d_%H-%M-%S) $c ./"
+    local tc="tarsnap -C /mnt/$l$x --cachedir /var/cache/tarsnap -c -f $l-$(date +%Y-%m-%d_%H%M) $c ./"
     log "tarsnap command: $tc"
     eval $tc \
         && { log "$l$x backed up"; return 0; } \
